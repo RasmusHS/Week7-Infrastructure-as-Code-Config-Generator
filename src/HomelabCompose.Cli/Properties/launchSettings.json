@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "HomelabCompose.Cli": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}
