@@ -1,4 +1,5 @@
 ﻿using HomelabCompose.Core.Parsing;
+using HomelabCompose.Core.Validation;
 using System.CommandLine;
 
 // Shared options
@@ -56,35 +57,9 @@ validateCommand.SetAction(parseResult =>
     var parser = new SchemaParser();
     var schema = parser.ParseFile(input.FullName);
 
-    Console.WriteLine($"Schema: {schema.Name}");
-    Console.WriteLine($"Domain: {schema.Domain}");
-    Console.WriteLine($"Local domain: {schema.LocalDomain}");
-    Console.WriteLine($"Default restart: {schema.Defaults.Restart}");
-    Console.WriteLine($"Networks: {string.Join(", ", schema.Networks.Keys)}");
-    Console.WriteLine($"Volumes: {string.Join(", ", schema.Volumes.Keys)}");
-    Console.WriteLine($"Traefik dashboard: {schema.Traefik.Dashboard}");
-    Console.WriteLine($"Tunnel mode: {schema.CloudflareTunnel?.Mode}");
-    Console.WriteLine($"Services: {schema.Services.Count}");
-
-    foreach (var (name, service) in schema.Services)
-    {
-        Console.WriteLine($"\n  [{name}]");
-        Console.WriteLine($"    Image: {service.Image}");
-        Console.WriteLine($"    Networks: {string.Join(", ", service.Networks.Keys)}");
-
-        if (service.Routing != null)
-        {
-            Console.WriteLine($"    Routing port: {service.Routing.Port}");
-            foreach (var (routerName, router) in service.Routing.Routers)
-            {
-                Console.WriteLine($"    Router '{routerName}': {router.Host} (tunnel: {router.Tunnel})");
-            }
-            foreach (var (mwName, mwProps) in service.Routing.Middlewares)
-            {
-                Console.WriteLine($"    Middleware '{mwName}': {string.Join(", ", mwProps.Select(p => $"{p.Key}={p.Value}"))}");
-            }
-        }
-    }
+    var validator = new SchemaValidator();
+    var result = validator.Validate(schema);
+    result.PrintToConsole();
 });
 
 // Root
