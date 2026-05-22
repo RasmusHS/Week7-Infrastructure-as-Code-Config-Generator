@@ -1,4 +1,5 @@
-﻿using HomelabCompose.Core.Parsing;
+﻿using HomelabCompose.Core.Generators;
+using HomelabCompose.Core.Parsing;
 using HomelabCompose.Core.Validation;
 using System.CommandLine;
 
@@ -39,11 +40,31 @@ generateCommand.SetAction(parseResult =>
     var diff = parseResult.GetValue(diffOption);
     var apply = parseResult.GetValue(applyOption);
 
-    // TODO: Parse YAML → Validate → Generate → (Diff / Write / Apply)
-    Console.WriteLine($"Generating from: {input.FullName}");
-    Console.WriteLine($"Output to: {output.FullName}");
-    if (diff) Console.WriteLine("Diff mode enabled");
-    if (apply) Console.WriteLine("Will run docker compose up");
+    var parser = new SchemaParser();
+    var schema = parser.ParseFile(input.FullName);
+
+    var validator = new SchemaValidator();
+    var validation = validator.Validate(schema);
+    validation.PrintToConsole();
+
+    if (!validation.IsValid)
+        return;
+
+    if (!output.Exists)
+        output.Create();
+
+    var generators = new IConfigGenerator[]
+    {
+        new DockerComposeGenerator(),
+    };
+
+    foreach (var generator in generators)
+    {
+        var content = generator.Generate(schema);
+        var filePath = Path.Combine(output.FullName, generator.FileName);
+        File.WriteAllText(filePath, content);
+        Console.WriteLine($"Generated: {filePath}");
+    }
 });
 
 // Validate command
