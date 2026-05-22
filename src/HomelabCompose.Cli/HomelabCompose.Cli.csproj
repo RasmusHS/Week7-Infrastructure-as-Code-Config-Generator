@@ -15,4 +15,8 @@
     <PackageReference Include="YamlDotNet" Version="17.1.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\HomelabCompose.Core\HomelabCompose.Core.csproj" />
+  </ItemGroup>
+
 </Project>
