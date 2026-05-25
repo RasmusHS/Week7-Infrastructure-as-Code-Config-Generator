@@ -1,6 +1,8 @@
 ﻿using HomelabCompose.Core.Generators;
 using HomelabCompose.Core.Parsing;
 using HomelabCompose.Core.Validation;
+using HomelabCompose.Core.Diff;
+using HomelabCompose.Core.Runner;
 using System.CommandLine;
 
 // Shared options
@@ -26,12 +28,18 @@ var applyOption = new Option<bool>("--apply")
     Description = "Run docker compose up after generating"
 };
 
+var dryRunOption = new Option<bool>("--dry-run")
+{
+    Description = "Validate compose file with Docker without starting services"
+};
+
 // Generate command
 var generateCommand = new Command("generate", "Generate configs from a homelab schema");
 generateCommand.Options.Add(inputOption);
 generateCommand.Options.Add(outputOption);
 generateCommand.Options.Add(diffOption);
 generateCommand.Options.Add(applyOption);
+generateCommand.Options.Add(dryRunOption);
 
 generateCommand.SetAction(parseResult =>
 {
@@ -39,6 +47,7 @@ generateCommand.SetAction(parseResult =>
     var output = parseResult.GetValue(outputOption)!;
     var diff = parseResult.GetValue(diffOption);
     var apply = parseResult.GetValue(applyOption);
+    var dryRun = parseResult.GetValue(dryRunOption);
 
     var parser = new SchemaParser();
     var schema = parser.ParseFile(input.FullName);
@@ -50,20 +59,53 @@ generateCommand.SetAction(parseResult =>
     if (!validation.IsValid)
         return;
 
-    if (!output.Exists)
-        output.Create();
-
+    // Generate all configs
     var generators = new IConfigGenerator[]
     {
         new DockerComposeGenerator(),
     };
 
+    var generatedFiles = new Dictionary<string, string>();
     foreach (var generator in generators)
+        generatedFiles[generator.FileName] = generator.Generate(schema);
+
+    // Diff mode: compare and show, don't write
+    if (diff)
     {
-        var content = generator.Generate(schema);
-        var filePath = Path.Combine(output.FullName, generator.FileName);
+        var diffService = new DiffService();
+        var diffs = diffService.ComputeDiffs(output.FullName, generatedFiles);
+
+        Console.WriteLine("\nDiff results:\n");
+        foreach (var result in diffs)
+            result.PrintToConsole();
+
+        return;
+    }
+
+    // Write files
+    if (!output.Exists)
+        output.Create();
+
+    foreach (var (fileName, content) in generatedFiles)
+    {
+        var filePath = Path.Combine(output.FullName, fileName);
         File.WriteAllText(filePath, content);
         Console.WriteLine($"Generated: {filePath}");
+    }
+
+    // Apply mode
+    if (apply || dryRun)
+    {
+        var composePath = Path.Combine(output.FullName, "docker-compose.yml");
+        var runner = new ComposeRunner();
+
+        var exitCode = runner.Validate(composePath);
+        if (exitCode != 0) return;
+
+        if (dryRun)
+            runner.DryRun(composePath);
+        else if (apply)
+            runner.Apply(composePath);
     }
 });
 

@@ -27,7 +27,7 @@ services:
     networks:
       proxy: 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: postgres
     restart: unless-stopped
     environment:

@@ -6,8 +6,6 @@ defaults:
   restart: unless-stopped
 
 networks:
-  proxy:
-    name: proxy
   backend:
     name: backend
 
